@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/ferrierepete/scriptguard)
+[![npm Version](https://img.shields.io/npm/v/scriptguard.svg)](https://www.npmjs.com/package/scriptguard)
 [![Node.js Version](https://img.shields.io/node/v/scriptguard.svg)](https://nodejs.org)
 
 > **Security scanner for npm package lifecycle scripts** — detect malicious `postinstall`, `preinstall`, and `prepare` scripts before they run.
@@ -10,7 +11,13 @@ npm supply chain attacks often hide in lifecycle scripts — code that runs auto
 
 ## Install
 
-### Option 1: Install from source (current)
+### Option 1: Install from npm (recommended)
+
+```bash
+npm install -g scriptguard
+```
+
+### Option 2: Install from source
 
 ```bash
 # Clone the repository
@@ -27,7 +34,7 @@ npm run build
 npm link
 ```
 
-### Option 2: Run directly without installation
+### Option 3: Run directly without installation
 
 ```bash
 # Clone and run
@@ -37,15 +44,6 @@ npm install
 npm run build
 node dist/cli.js scan
 ```
-
-### Option 3: Install via npm (coming soon)
-
-```bash
-# Package will be published to npm soon
-npm install -g scriptguard
-```
-
-> **Note**: This project is currently in development. To use it today, install from source using Option 1 or Option 2.
 
 ## Usage
 
@@ -150,25 +148,10 @@ ScriptGuard uses 26 detection patterns across 6 categories:
 
 ## CI/CD Integration
 
-### When published to npm (coming soon)
-
 ```yaml
 # GitHub Actions
 - name: ScriptGuard Security Scan
   run: npx scriptguard scan --fail-on high --format sarif > scriptguard-results.sarif
-```
-
-### Installing from source (current)
-
-```yaml
-# GitHub Actions
-- name: ScriptGuard Security Scan
-  run: |
-    git clone https://github.com/ferrierepete/scriptguard.git
-    cd scriptguard
-    npm install
-    npm run build
-    node dist/cli.js scan --fail-on high --format sarif > scriptguard-results.sarif
 ```
 
 ## Programmatic API
@@ -304,18 +287,8 @@ Use them together for comprehensive coverage.
 **Absolutely.** Add ScriptGuard to your CI pipeline to catch supply chain attacks before they reach production:
 
 ```yaml
-# When published to npm (coming soon)
 - name: Run ScriptGuard
   run: npx scriptguard scan --fail-on high
-
-# Installing from source (current)
-- name: Run ScriptGuard
-  run: |
-    git clone https://github.com/ferrierepete/scriptguard.git
-    cd scriptguard
-    npm install
-    npm run build
-    node dist/cli.js scan --fail-on high
 ```
 
 ## Troubleshooting
@@ -417,7 +390,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - **GitHub Repository**: https://github.com/ferrierepete/scriptguard
 - **Report Issues**: https://github.com/ferrierepete/scriptguard/issues
 - **Discussions**: https://github.com/ferrierepete/scriptguard/discussions
-- **npm Package** (coming soon): Will be published at https://www.npmjs.com/package/scriptguard
+- **npm Package**: https://www.npmjs.com/package/scriptguard
 
 ## Related Tools
 
