@@ -1,0 +1,8 @@
+{
+  "name": "native-addon",
+  "version": "2.0.5",
+  "description": "Native addon using node-gyp",
+  "scripts": {
+    "install": "node-gyp rebuild && node scripts/post-install.js"
+  }
+}

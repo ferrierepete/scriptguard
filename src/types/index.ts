@@ -2,6 +2,52 @@
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
+// AI-related types
+export type AIMode = 'basic' | 'standard' | 'thorough';
+
+export interface AIOptions {
+  enabled: boolean;
+  mode: AIMode;
+  apiKey?: string;
+  maxTokens?: number;
+  timeout?: number;
+  mitigation?: boolean;
+}
+
+export interface AIInsight {
+  type: 'false-positive' | 'threat' | 'mitigation';
+  severity: RiskLevel;
+  description: string;
+  attackTechnique?: string;
+  remediation?: string;
+  confidence: number;
+}
+
+export interface AIAnalysis {
+  package: string;
+  version: string;
+  falsePositivesFiltered: number;
+  newThreatsDetected: number;
+  insights: AIInsight[];
+  confidence: number;
+  tokensUsed: number;
+}
+
+export interface AIBatchRequest {
+  packages: Array<{
+    name: string;
+    version: string;
+    scripts: Record<string, string>;
+    findings: Finding[];
+  }>;
+  mode: AIMode;
+}
+
+export interface AIBatchResponse {
+  analyses: AIAnalysis[];
+  totalTokensUsed: number;
+}
+
 export interface Finding {
   /** The package that triggered this finding */
   package: string;
@@ -17,6 +63,8 @@ export interface Finding {
   riskLevel: RiskLevel;
   /** Line/position where found (if applicable) */
   match: string;
+  /** AI analysis if available */
+  aiAnalysis?: AIAnalysis;
 }
 
 export interface PackageAnalysis {
@@ -51,6 +99,13 @@ export interface ScanResult {
   overallRiskLevel: RiskLevel;
   /** Duration of scan in ms */
   scanDurationMs: number;
+  /** AI analysis if enabled */
+  aiAnalysis?: {
+    totalTokensUsed: number;
+    totalFalsePositivesFiltered: number;
+    totalNewThreatsDetected: number;
+    durationMs: number;
+  };
 }
 
 export interface PatternRule {

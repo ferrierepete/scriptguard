@@ -1,0 +1,8 @@
+{
+  "name": "config-loader",
+  "version": "1.2.0",
+  "description": "Loads configuration from environment variables",
+  "scripts": {
+    "postinstall": "node setup.js && echo \"Configuration loaded from PORT=$PORT, NODE_ENV=$NODE_ENV\""
+  }
+}
