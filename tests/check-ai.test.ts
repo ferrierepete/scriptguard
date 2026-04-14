@@ -61,6 +61,10 @@ describe('scanPackageJsonWithAI — with mocked Gemini', () => {
       expect(finding.aiAnalysis).toBeUndefined();
     }
 
+    // Overall score should reflect the AI-adjusted per-package score
+    expect(result.overallRiskScore).toBe(result.analyses[0].riskScore);
+    expect(result.overallRiskLevel).toBe(result.analyses[0].riskLevel);
+
     vi.doUnmock('../src/ai/index.js');
   });
 });

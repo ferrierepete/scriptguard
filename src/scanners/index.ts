@@ -54,6 +54,39 @@ function aggregateResults(
   };
 }
 
+/**
+ * Recompute overall risk score and level from (potentially AI-adjusted) analyses.
+ */
+function recalculateOverall(result: ScanResult): void {
+  const analyses = result.analyses;
+
+  // Recalculate findings by level
+  const findingsByLevel: Record<RiskLevel, number> = { low: 0, medium: 0, high: 0, critical: 0 };
+  for (const a of analyses) {
+    for (const f of a.findings) {
+      findingsByLevel[f.riskLevel]++;
+    }
+  }
+
+  // Recalculate overall risk score
+  let overallRiskScore = 0;
+  if (analyses.length > 0) {
+    const total = analyses.reduce((sum, a) => sum + a.riskScore, 0);
+    overallRiskScore = Math.round(total / analyses.length);
+    const maxScore = Math.max(...analyses.map((a) => a.riskScore));
+    overallRiskScore = Math.min(100, Math.round(overallRiskScore * 0.3 + maxScore * 0.7));
+  }
+
+  let overallRiskLevel: RiskLevel = 'low';
+  if (findingsByLevel.critical > 0) overallRiskLevel = 'critical';
+  else if (findingsByLevel.high > 0) overallRiskLevel = 'high';
+  else if (findingsByLevel.medium > 0) overallRiskLevel = 'medium';
+
+  result.overallRiskScore = overallRiskScore;
+  result.overallRiskLevel = overallRiskLevel;
+  result.findingsByLevel = findingsByLevel;
+}
+
 export async function scanProject(options: ScanOptions & { ai?: AIOptions }): Promise<ScanResult> {
   const startTime = Date.now();
   const analyses = scanInstalledPackages(
@@ -207,6 +240,9 @@ async function enrichWithAI(result: ScanResult, aiOptions: AIOptions): Promise<S
     totalNewThreatsDetected,
     durationMs: Date.now() - aiStartTime,
   };
+
+  // Recompute overall score/level now that per-package scores may have changed
+  recalculateOverall(result);
 
   return result;
 }
