@@ -1,6 +1,6 @@
 {
   "name": "scriptguard",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Security scanner for npm package lifecycle scripts — detect malicious postinstall, preinstall, and prepare scripts before they run",
   "main": "dist/index.js",
   "bin": {
