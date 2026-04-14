@@ -56,7 +56,11 @@ function aggregateResults(
 
 export async function scanProject(options: ScanOptions & { ai?: AIOptions }): Promise<ScanResult> {
   const startTime = Date.now();
-  const analyses = scanInstalledPackages(options.path, options.includeDev);
+  const analyses = scanInstalledPackages(
+    options.path,
+    options.includeDev,
+    { ast: options.ast, deobfuscate: options.deobfuscate }
+  );
   let result = aggregateResults(analyses, startTime);
 
   // Phase 2: AI analysis (opt-in)

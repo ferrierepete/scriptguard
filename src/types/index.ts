@@ -2,6 +2,23 @@
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
+// AST-based finding (Layer 2)
+export interface ASTFinding {
+  pattern: string;
+  description: string;
+  riskLevel: RiskLevel;
+  nodeType: string;
+  match: string;
+}
+
+// Deobfuscation result (Layer 3)
+export interface DeobfuscationResult {
+  deobfuscated: string;
+  iterations: number;
+  techniques: string[];
+  success: boolean;
+}
+
 // AI-related types
 export type AIMode = 'basic' | 'standard' | 'thorough';
 
@@ -65,6 +82,10 @@ export interface Finding {
   match: string;
   /** AI analysis if available */
   aiAnalysis?: AIAnalysis;
+  /** AST-based findings (Layer 2) */
+  astFindings?: ASTFinding[];
+  /** Deobfuscation result (Layer 3) */
+  deobfuscation?: DeobfuscationResult;
 }
 
 export interface PackageAnalysis {
@@ -132,4 +153,8 @@ export interface ScanOptions {
   format: 'table' | 'json' | 'sarif';
   /** Fail on findings at or above this level (for CI) */
   failLevel?: RiskLevel;
+  /** Enable AST-based pattern matching (default: true) */
+  ast?: boolean;
+  /** Enable deobfuscation layer (default: true) */
+  deobfuscate?: boolean;
 }

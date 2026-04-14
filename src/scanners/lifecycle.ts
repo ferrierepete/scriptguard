@@ -4,6 +4,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { PackageAnalysis, RiskLevel } from '../types/index.js';
 import { PATTERN_RULES } from './patterns.js';
+import { analyzeScriptAST } from './ast.js';
+import { deobfuscateScript } from './deobfuscation.js';
 
 const LIFECYCLE_SCRIPTS = [
   'preinstall',
@@ -53,9 +55,11 @@ function analyzeScriptContent(
   version: string,
   scriptName: string,
   scriptContent: string,
+  options?: { ast?: boolean; deobfuscate?: boolean },
 ): PackageAnalysis['findings'] {
   const findings: PackageAnalysis['findings'] = [];
 
+  // Layer 1: Regex pattern matching (existing)
   for (const rule of PATTERN_RULES) {
     const match = rule.pattern.exec(scriptContent);
     if (match) {
@@ -68,6 +72,75 @@ function analyzeScriptContent(
         riskLevel: rule.riskLevel,
         match: match[0],
       });
+    }
+  }
+
+  // Layer 2: AST analysis (only if regex found something AND AST is enabled)
+  if (findings.length > 0 && options?.ast !== false) {
+    try {
+      const astFindings = analyzeScriptAST(scriptContent);
+
+      if (astFindings.length > 0) {
+        // Add AST findings
+        findings.push(...astFindings.map((f) => ({
+          package: packageName,
+          scriptName,
+          scriptContent,
+          pattern: f.pattern,
+          description: f.description,
+          riskLevel: f.riskLevel,
+          match: f.match,
+        })));
+
+        // Add AST findings metadata to first regex finding
+        if (findings.length > 0) {
+          findings[0].astFindings = astFindings;
+        }
+
+        // Layer 3: Deobfuscation (only if AST found something AND deobfuscation is enabled)
+        const deobf = options?.deobfuscate === false
+          ? { deobfuscated: scriptContent, iterations: 0, techniques: [], success: false }
+          : deobfuscateScript(scriptContent);
+        if (deobf.success && deobf.iterations > 0) {
+          // Mark all findings with deobfuscation metadata
+          for (const f of findings) {
+            f.deobfuscation = deobf;
+          }
+
+          // Re-analyze deobfuscated code (recursive call with deobfuscated content)
+          // This catches patterns that were hidden by encoding
+          try {
+            const deobfFindings = analyzeScriptContent(
+              packageName,
+              version,
+              scriptName,
+              deobf.deobfuscated
+            );
+
+            // Add deobfuscated findings if they're different
+            for (const deobfFinding of deobfFindings) {
+              // Check if this pattern was already found
+              const alreadyFound = findings.some(
+                (f) => f.pattern === deobfFinding.pattern
+              );
+
+              if (!alreadyFound) {
+                // Mark as found via deobfuscation
+                deobfFinding.pattern = `${deobfFinding.pattern}-deobfuscated`;
+                findings.push(deobfFinding);
+              }
+            }
+          } catch {
+            // Recursive analysis failed — continue with original findings
+          }
+        }
+      }
+    } catch (error: any) {
+      // AST/deobfuscation failed — continue with regex-only
+      // Log warning but don't break the scan
+      console.warn(
+        `AST/deobfuscation analysis failed for ${packageName}:${scriptName}: ${error.message}`
+      );
     }
   }
 
@@ -92,12 +165,13 @@ export function analyzePackage(
   name: string,
   version: string,
   scripts: Record<string, string>,
+  options?: { ast?: boolean; deobfuscate?: boolean },
 ): PackageAnalysis {
   const lifecycleScripts = extractLifecycleScripts(scripts);
   const allFindings: PackageAnalysis['findings'] = [];
 
   for (const [scriptName, scriptContent] of Object.entries(lifecycleScripts)) {
-    const scriptFindings = analyzeScriptContent(name, version, scriptName, scriptContent);
+    const scriptFindings = analyzeScriptContent(name, version, scriptName, scriptContent, options);
     allFindings.push(...scriptFindings);
 
     // Flag any lifecycle script that exists without findings as "low" info
@@ -126,7 +200,11 @@ export function analyzePackage(
   };
 }
 
-export function scanInstalledPackages(projectPath: string, includeDev = false): PackageAnalysis[] {
+export function scanInstalledPackages(
+  projectPath: string,
+  includeDev = false,
+  options?: { ast?: boolean; deobfuscate?: boolean }
+): PackageAnalysis[] {
   const nodeModulesPath = path.join(projectPath, 'node_modules');
   if (!fs.existsSync(nodeModulesPath)) {
     throw new Error(`No node_modules found at ${nodeModulesPath}`);
@@ -159,7 +237,7 @@ export function scanInstalledPackages(projectPath: string, includeDev = false): 
 
             if (pkgJson.scripts && Object.keys(pkgJson.scripts).length > 0) {
               analyses.push(
-                analyzePackage(pkgJson.name || entry.name, pkgJson.version || 'unknown', pkgJson.scripts),
+                analyzePackage(pkgJson.name || entry.name, pkgJson.version || 'unknown', pkgJson.scripts, options),
               );
             }
           } catch {

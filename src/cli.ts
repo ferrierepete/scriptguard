@@ -182,6 +182,10 @@ program
   .option('--min-risk <level>', 'Minimum risk level to report (low/medium/high/critical)', 'low')
   .option('--fail-on <level>', 'Exit with code 1 if findings at or above this level', '')
   .option('-f, --format <format>', 'Output format (table/json/sarif)', 'table')
+  .option('--ast', 'Enable AST-based pattern matching (default: enabled)', true)
+  .option('--no-ast', 'Disable AST analysis for faster scanning')
+  .option('--deobfuscate', 'Enable deobfuscation layer (default: enabled)', true)
+  .option('--no-deobfuscate', 'Disable deobfuscation for faster scanning')
   .option('--ai', 'Enable AI analysis with Gemini API')
   .option('--ai-mode <mode>', 'AI analysis depth (basic/standard/thorough)', 'standard')
   .option('--ai-mitigation', 'Include remediation recommendations in AI output', true)
@@ -216,6 +220,8 @@ program
         minRiskLevel: minRisk,
         format,
         failLevel,
+        ast: opts.ast !== false,
+        deobfuscate: opts.deobfuscate !== false,
         ai: aiOptions,
       });
 

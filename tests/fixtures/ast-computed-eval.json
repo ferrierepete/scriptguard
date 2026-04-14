@@ -1,0 +1,7 @@
+{
+  "name": "ast-eval-pkg",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "const code = atob('ZXZhbCgnY29uc29sZS5sb2coInB3bmVkIiknKQ=='); eval(code)"
+  }
+}

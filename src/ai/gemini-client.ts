@@ -1,5 +1,6 @@
 /** ScriptGuard — Gemini AI client wrapper */
 
+import { createHash } from 'crypto';
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import type { AIMode, AIBatchRequest, AIBatchResponse } from '../types/index.js';
 
@@ -92,11 +93,21 @@ export class GeminiClient {
   }
 
   /**
-   * Generate cache key from request data
+   * Generate cache key from request data using content hash
    */
+  private getContentHash(content: string): string {
+    return createHash('sha256').update(content).digest('hex');
+  }
+
   private getCacheKey(request: AIBatchRequest): string {
+    // Use content hash instead of just package names for better cache hits
     const packagesHash = request.packages
-      .map(p => `${p.name}@${p.version}:${Object.keys(p.scripts).join(',')}`)
+      .map((p) => {
+        // Hash the script content for deobfuscated scripts if available, otherwise use originals
+        const scriptsToHash = Object.values(p.scripts).join('|');
+        const scriptHash = this.getContentHash(scriptsToHash);
+        return `${p.name}@${p.version}:${scriptHash}`;
+      })
       .sort()
       .join('|');
     return `${request.mode}:${packagesHash}`;
