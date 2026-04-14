@@ -54,6 +54,13 @@ describe('scanPackageJsonWithAI — with mocked Gemini', () => {
     expect(result.aiAnalysis!.totalNewThreatsDetected).toBe(1);
     expect(result.aiAnalysis!.totalTokensUsed).toBe(100);
 
+    // AI analysis should be at the package level, not per-finding
+    expect(result.analyses[0].aiAnalysis).toBeDefined();
+    expect(result.analyses[0].aiAnalysis!.insights.length).toBeGreaterThan(0);
+    for (const finding of result.analyses[0].findings) {
+      expect(finding.aiAnalysis).toBeUndefined();
+    }
+
     vi.doUnmock('../src/ai/index.js');
   });
 });

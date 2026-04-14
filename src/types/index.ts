@@ -101,6 +101,8 @@ export interface PackageAnalysis {
   riskScore: number;
   /** Overall risk level */
   riskLevel: RiskLevel;
+  /** AI analysis if available */
+  aiAnalysis?: AIAnalysis;
 }
 
 export interface ScanResult {

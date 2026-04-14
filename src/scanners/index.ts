@@ -170,10 +170,8 @@ async function enrichWithAI(result: ScanResult, aiOptions: AIOptions): Promise<S
     const aiAnalysis = aiAnalyses.get(key);
 
     if (aiAnalysis) {
-      // Add AI analysis to findings
-      for (const finding of analysis.findings) {
-        finding.aiAnalysis = aiAnalysis;
-      }
+      // Attach AI analysis at the package level
+      analysis.aiAnalysis = aiAnalysis;
 
       totalFalsePositivesFiltered += aiAnalysis.falsePositivesFiltered;
       totalNewThreatsDetected += aiAnalysis.newThreatsDetected;

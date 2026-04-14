@@ -87,18 +87,20 @@ function formatTable(result: ScanResult): string {
         const truncated = finding.match.length > 60 ? finding.match.substring(0, 57) + '...' : finding.match;
         lines.push(`      ${dim('Match:')} ${truncated}`);
       }
+    }
 
-      // Display AI insights if available
-      if (finding.aiAnalysis && finding.aiAnalysis.insights.length > 0) {
-        for (const insight of finding.aiAnalysis.insights) {
-          const insightIcon = insight.type === 'false-positive' ? '✅' : '⚠️';
-          lines.push(`      ${dim(insightIcon)} ${dim(insight.description)}`);
-          if (insight.attackTechnique) {
-            lines.push(`        ${dim('Technique:')} ${dim(insight.attackTechnique)}`);
-          }
-          if (insight.remediation) {
-            lines.push(`        ${dim('Remediation:')} ${dim(insight.remediation.substring(0, 80) + (insight.remediation.length > 80 ? '...' : ''))}`);
-          }
+    // Display AI insights once per package (not per finding)
+    if (analysis.aiAnalysis && analysis.aiAnalysis.insights.length > 0) {
+      lines.push('');
+      lines.push(`    ${BOLD}AI Insights${RESET}`);
+      for (const insight of analysis.aiAnalysis.insights) {
+        const insightIcon = insight.type === 'false-positive' ? '✅' : '⚠️';
+        lines.push(`    ${dim(insightIcon)} ${dim(insight.description)}`);
+        if (insight.attackTechnique) {
+          lines.push(`      ${dim('Technique:')} ${dim(insight.attackTechnique)}`);
+        }
+        if (insight.remediation) {
+          lines.push(`      ${dim('Remediation:')} ${dim(insight.remediation.substring(0, 80) + (insight.remediation.length > 80 ? '...' : ''))}`);
         }
       }
     }
