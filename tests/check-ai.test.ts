@@ -57,16 +57,15 @@ describe('scanPackageJsonWithAI — with mocked Gemini', () => {
     // AI analysis should be at the package level, not per-finding
     expect(result.analyses[0].aiAnalysis).toBeDefined();
     expect(result.analyses[0].aiAnalysis!.insights.length).toBeGreaterThan(0);
-    for (const finding of result.analyses[0].findings) {
-      expect(finding.aiAnalysis).toBeUndefined();
-    }
 
-    // AI threat insights should produce synthetic findings
+    // No synthetic ai-threat findings — AI insights live only in aiAnalysis
     const syntheticFindings = result.analyses[0].findings.filter(f => f.pattern === 'ai-threat');
-    expect(syntheticFindings.length).toBe(1);
-    expect(syntheticFindings[0].riskLevel).toBe('critical');
+    expect(syntheticFindings.length).toBe(0);
 
-    // findingsByLevel should include the AI-escalated critical finding
+    // totalFindings should only count static findings
+    expect(result.totalFindings).toBeGreaterThan(0);
+
+    // findingsByLevel should include AI-escalated severities
     expect(result.findingsByLevel.critical).toBeGreaterThanOrEqual(1);
 
     // Overall should reflect the escalated severity
@@ -130,6 +129,129 @@ describe('scanPackageJsonWithAI — without AI', () => {
 
     expect(result).toBeDefined();
     expect(result.totalFindings).toBeGreaterThan(0);
+  });
+});
+
+// ─── Unit: shouldFail with AI insights ───────────────────────────────────
+
+describe('shouldFail — with AI insights', () => {
+  it('fails when AI threat severity meets threshold even if no static finding does', async () => {
+    const mockAnalyzeBatch = vi.fn().mockResolvedValue({
+      analyses: [{
+        package: 'malicious-pkg',
+        version: '1.0.0',
+        falsePositivesFiltered: 0,
+        newThreatsDetected: 1,
+        insights: [{
+          type: 'threat',
+          severity: 'critical',
+          description: 'AI-detected critical threat',
+          attackTechnique: 'Supply chain attack',
+          remediation: 'Remove package',
+          confidence: 0.95,
+        }],
+        confidence: 0.95,
+        tokensUsed: 100,
+      }],
+      totalTokensUsed: 100,
+    });
+
+    vi.doMock('../src/ai/index.js', () => ({
+      getGeminiClient: () => ({
+        analyzeBatch: mockAnalyzeBatch,
+      }),
+    }));
+
+    vi.resetModules();
+
+    const maliciousPath = path.join(FIXTURES, 'malicious.json');
+    const { scanPackageJsonWithAI, shouldFail } = await import('../src/scanners/index.js');
+    const result = await scanPackageJsonWithAI(maliciousPath, {
+      enabled: true,
+      mode: 'standard',
+      apiKey: 'test-key',
+    });
+
+    // malicious.json has high findings but AI escalated to critical
+    expect(shouldFail(result, 'critical')).toBe(true);
+
+    vi.doUnmock('../src/ai/index.js');
+    vi.resetModules();
+  });
+
+  it('does not fail on critical when only high AI insights exist', async () => {
+    const mockAnalyzeBatch = vi.fn().mockResolvedValue({
+      analyses: [{
+        package: 'suspicious-pkg',
+        version: '0.1.0',
+        falsePositivesFiltered: 0,
+        newThreatsDetected: 1,
+        insights: [{
+          type: 'threat',
+          severity: 'high',
+          description: 'AI-detected high threat',
+          confidence: 0.9,
+        }],
+        confidence: 0.9,
+        tokensUsed: 100,
+      }],
+      totalTokensUsed: 100,
+    });
+
+    vi.doMock('../src/ai/index.js', () => ({
+      getGeminiClient: () => ({
+        analyzeBatch: mockAnalyzeBatch,
+      }),
+    }));
+
+    vi.resetModules();
+
+    // Use suspicious fixture — has critical static findings (passwd, ssh)
+    // so shouldFail('critical') is true from static alone.
+    // Instead test that shouldFail('critical') is false when AI only adds high
+    // by testing with shouldFail directly on a constructed result.
+    const { shouldFail } = await import('../src/scanners/index.js');
+    const result = {
+      totalPackages: 1,
+      packagesWithScripts: 1,
+      analyses: [{
+        name: 'test',
+        version: '1.0.0',
+        scripts: { postinstall: 'echo hello' },
+        findings: [
+          { pattern: 'http-request', riskLevel: 'medium' as const, package: 'test', scriptName: 'postinstall', scriptContent: '', description: '', match: '' },
+        ],
+        riskScore: 25,
+        riskLevel: 'medium' as const,
+        aiAnalysis: {
+          package: 'test',
+          version: '1.0.0',
+          falsePositivesFiltered: 0,
+          newThreatsDetected: 1,
+          insights: [{
+            type: 'threat' as const,
+            severity: 'high' as const,
+            description: 'AI saw something',
+            confidence: 0.9,
+          }],
+          confidence: 0.9,
+          tokensUsed: 50,
+        },
+      }],
+      totalFindings: 1,
+      findingsByLevel: { low: 0, medium: 1, high: 1, critical: 0 },
+      overallRiskScore: 40,
+      overallRiskLevel: 'high' as const,
+      scanDurationMs: 1,
+    };
+
+    // Only medium static + high AI → critical threshold NOT met
+    expect(shouldFail(result, 'critical')).toBe(false);
+    // High AI threat → high threshold met
+    expect(shouldFail(result, 'high')).toBe(true);
+
+    vi.doUnmock('../src/ai/index.js');
+    vi.resetModules();
   });
 });
 

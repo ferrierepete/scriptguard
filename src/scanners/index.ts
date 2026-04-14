@@ -55,26 +55,48 @@ function aggregateResults(
 }
 
 /**
- * Recompute per-package and overall risk scores/levels from (potentially AI-adjusted) findings.
+ * Recompute per-package and overall risk scores/levels.
+ * Factors in both static findings and AI threat insights.
  */
 function recalculateOverall(result: ScanResult): void {
   const analyses = result.analyses;
 
-  // Recalculate per-package scores from their findings (including synthetic AI findings)
+  // Recalculate per-package scores from findings + AI threat insights
   for (const analysis of analyses) {
     analysis.riskScore = calculateRiskScore(analysis.findings);
     analysis.riskLevel = riskLevelFromScore(analysis.riskScore);
+
+    // AI threat insights can escalate the package-level score/level
+    if (analysis.aiAnalysis) {
+      const threatInsights = analysis.aiAnalysis.insights.filter(i => i.type === 'threat');
+      if (threatInsights.length > 0) {
+        // Score: blend AI threat severity into the package score
+        const aiWeights = threatInsights.map(i => {
+          const order = { low: 5, medium: 25, high: 60, critical: 100 };
+          return order[i.severity] * i.confidence;
+        });
+        const avgAiWeight = aiWeights.reduce((s, w) => s + w, 0) / aiWeights.length;
+        analysis.riskScore = Math.min(100, Math.round(analysis.riskScore * 0.5 + avgAiWeight * 0.5));
+        analysis.riskLevel = riskLevelFromScore(analysis.riskScore);
+      }
+    }
   }
 
-  // Recalculate findings by level
+  // Count findings by level (static findings only — AI insights live in aiAnalysis)
   const findingsByLevel: Record<RiskLevel, number> = { low: 0, medium: 0, high: 0, critical: 0 };
   for (const a of analyses) {
     for (const f of a.findings) {
       findingsByLevel[f.riskLevel]++;
     }
+    // Also count AI threat severities so the summary reflects AI escalation
+    if (a.aiAnalysis) {
+      for (const insight of a.aiAnalysis.insights.filter(i => i.type === 'threat')) {
+        findingsByLevel[insight.severity]++;
+      }
+    }
   }
 
-  // Recalculate overall risk score
+  // Recalculate overall risk score from per-package scores
   let overallRiskScore = 0;
   if (analyses.length > 0) {
     const total = analyses.reduce((sum, a) => sum + a.riskScore, 0);
@@ -88,6 +110,7 @@ function recalculateOverall(result: ScanResult): void {
   else if (findingsByLevel.high > 0) overallRiskLevel = 'high';
   else if (findingsByLevel.medium > 0) overallRiskLevel = 'medium';
 
+  // totalFindings stays as static findings only (no inflation from AI)
   result.totalFindings = analyses.reduce((sum, a) => sum + a.findings.length, 0);
   result.overallRiskScore = overallRiskScore;
   result.overallRiskLevel = overallRiskLevel;
@@ -152,9 +175,20 @@ export async function scanPackageJsonWithAI(filePath: string, aiOptions?: AIOpti
 export function shouldFail(result: ScanResult, failLevel?: RiskLevel): boolean {
   if (!failLevel) return false;
   const threshold = RISK_LEVEL_ORDER[failLevel];
-  return result.analyses.some((a) =>
-    a.findings.some((f) => RISK_LEVEL_ORDER[f.riskLevel] >= threshold),
-  );
+  return result.analyses.some((a) => {
+    // Check static findings
+    if (a.findings.some((f) => RISK_LEVEL_ORDER[f.riskLevel] >= threshold)) {
+      return true;
+    }
+    // Also check AI threat insights
+    if (a.aiAnalysis) {
+      const threatInsights = a.aiAnalysis.insights.filter(i => i.type === 'threat');
+      if (threatInsights.some(i => RISK_LEVEL_ORDER[i.severity] >= threshold)) {
+        return true;
+      }
+    }
+    return false;
+  });
 }
 
 export function filterByRiskLevel(analyses: PackageAnalysis[], minLevel: RiskLevel): PackageAnalysis[] {
@@ -215,25 +249,6 @@ async function enrichWithAI(result: ScanResult, aiOptions: AIOptions): Promise<S
 
       totalFalsePositivesFiltered += aiAnalysis.falsePositivesFiltered;
       totalNewThreatsDetected += aiAnalysis.newThreatsDetected;
-
-      // Create synthetic findings from AI threat insights so that
-      // findingsByLevel, overallRiskLevel, and shouldFail reflect AI-detected threats
-      const threatInsights = aiAnalysis.insights.filter(i => i.type === 'threat');
-      if (threatInsights.length > 0) {
-        const bestScript = Object.keys(analysis.scripts)[0] || 'unknown';
-        const scriptContent = analysis.scripts[bestScript] || '';
-        for (const insight of threatInsights) {
-          analysis.findings.push({
-            package: analysis.name,
-            scriptName: bestScript,
-            scriptContent,
-            pattern: 'ai-threat',
-            description: insight.description,
-            riskLevel: insight.severity,
-            match: insight.attackTechnique || insight.description.substring(0, 80),
-          });
-        }
-      }
     }
   }
 

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-04-14
+
+### Fixed
+
+- AI threat insights no longer create duplicate `ai-threat` entries in the findings array. They live only in `aiAnalysis.insights` — clean separation between static findings and AI analysis
+- `totalFindings` now counts only static (regex/AST) findings — no inflation from AI
+- `findingsByLevel` and `overallRiskLevel` still correctly reflect AI-escalated severities via blended scoring
+- `shouldFail` now checks AI threat insights in addition to static findings, so `--fail-on critical` catches AI-flagged packages
+
 ## [1.1.0] - 2026-04-14
 
 ### Added
