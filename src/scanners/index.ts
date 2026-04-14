@@ -230,7 +230,6 @@ async function enrichWithAI(result: ScanResult, aiOptions: AIOptions): Promise<S
   );
 
   let totalFalsePositivesFiltered = 0;
-  let totalNewThreatsDetected = 0;
 
   for (const analysis of result.analyses) {
     const key = `${analysis.name}@${analysis.version}`;
@@ -241,9 +240,16 @@ async function enrichWithAI(result: ScanResult, aiOptions: AIOptions): Promise<S
       analysis.aiAnalysis = aiAnalysis;
 
       totalFalsePositivesFiltered += aiAnalysis.falsePositivesFiltered;
-      totalNewThreatsDetected += aiAnalysis.newThreatsDetected;
+      // Override model-reported newThreatsDetected with actual threat insight count
+      const actualThreatCount = aiAnalysis.insights.filter(i => i.type === 'threat').length;
+      aiAnalysis.newThreatsDetected = actualThreatCount;
     }
   }
+
+  // Derive total from actual insights (single source of truth)
+  const totalNewThreatsDetected = result.analyses.reduce(
+    (sum, a) => sum + (a.aiAnalysis?.insights.filter(i => i.type === 'threat').length ?? 0), 0
+  );
 
   // Add AI summary to result
   result.aiAnalysis = {

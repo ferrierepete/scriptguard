@@ -60,10 +60,27 @@ function formatTable(result: ScanResult): string {
 
   // AI Analysis Summary
   if (result.aiAnalysis) {
+    // Derive threat count and max severity from actual insights (single source of truth)
+    let threatCount = 0;
+    let maxThreatLevel: RiskLevel = 'low';
+    const levelOrder: Record<RiskLevel, number> = { low: 0, medium: 1, high: 2, critical: 3 };
+    for (const a of result.analyses) {
+      if (a.aiAnalysis) {
+        for (const insight of a.aiAnalysis.insights) {
+          if (insight.type === 'threat') {
+            threatCount++;
+            if (levelOrder[insight.severity] > levelOrder[maxThreatLevel]) {
+              maxThreatLevel = insight.severity;
+            }
+          }
+        }
+      }
+    }
+
     lines.push('');
     lines.push(bold('  AI Analysis'));
     lines.push(`  False positives filtered: ${GREEN}${result.aiAnalysis.totalFalsePositivesFiltered}${RESET}`);
-    lines.push(`  New threats detected: ${RISK_ICONS.high} ${result.aiAnalysis.totalNewThreatsDetected}${RESET}`);
+    lines.push(`  New threats detected: ${RISK_ICONS[maxThreatLevel]} ${threatCount}${RESET}`);
     lines.push(`  Tokens used: ${dim(String(result.aiAnalysis.totalTokensUsed))}`);
     lines.push(`  AI duration: ${dim(result.aiAnalysis.durationMs + 'ms')}`);
   }
