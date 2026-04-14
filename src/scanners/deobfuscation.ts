@@ -62,30 +62,27 @@ export function deobfuscateScript(
     }
   }
 
-  // Validate that deobfuscated code is still valid JavaScript
+  // Validate that deobfuscated code is still valid JavaScript (for AST use)
   if (iterations > 0) {
+    let isValidJS = false;
     try {
       parse(current, {
         ecmaVersion: 'latest',
         sourceType: 'script',
       });
-
-      // Deobfuscated successfully and is valid JS
-      return {
-        deobfuscated: current,
-        iterations,
-        techniques,
-        success: true,
-      };
+      isValidJS = true;
     } catch {
-      // Deobfuscation produced invalid syntax — return original
-      return {
-        deobfuscated: scriptContent,
-        iterations: 0,
-        techniques: [],
-        success: false,
-      };
+      // Not valid JS (e.g. shell command with decoded arguments)
+      // Still useful for regex scanning — don't discard
     }
+
+    return {
+      deobfuscated: current,
+      iterations,
+      techniques,
+      success: true,
+      isValidJS,
+    };
   }
 
   // No deobfuscation occurred

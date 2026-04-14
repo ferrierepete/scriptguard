@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-14
+
+### Changed
+
+- Deobfuscation layer no longer gated behind AST findings — runs when encoding patterns (hex, base64, unicode escapes, atob, Buffer.from) are detected in the script content
+- Pipeline order restructured: Regex → Deobfuscation → AST (runs on both original and deobfuscated content)
+- Deobfuscation no longer discards decoded content that isn't valid JavaScript (e.g. shell commands with decoded arguments) — still useful for regex pattern matching
+
 ## [1.1.3] - 2026-04-14
 
 ### Fixed

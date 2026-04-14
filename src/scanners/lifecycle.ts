@@ -50,6 +50,29 @@ function extractLifecycleScripts(scripts: Record<string, string>): Record<string
   return result;
 }
 
+/**
+ * Check if script content contains encoding patterns that warrant deobfuscation.
+ * Only triggers on actual encoding indicators to avoid unnecessary overhead.
+ */
+function hasEncodedContent(
+  scriptContent: string,
+  regexFindings: PackageAnalysis['findings'],
+): boolean {
+  // Check if regex already detected encoding patterns
+  if (regexFindings.some(f => f.pattern === 'hex-encode' || f.pattern === 'base64-exec')) {
+    return true;
+  }
+
+  // Check for encoding indicators in the raw content
+  if (/\\x[0-9a-fA-F]{2}/.test(scriptContent)) return true;  // hex escapes
+  if (/\\u[0-9a-fA-F]{4}/.test(scriptContent)) return true;  // unicode escapes
+  if (/atob\s*\(/.test(scriptContent)) return true;           // atob calls
+  if (/Buffer\.from\s*\(/.test(scriptContent)) return true;   // Buffer.from calls
+  if (/base64/.test(scriptContent)) return true;              // base64 keyword
+
+  return false;
+}
+
 function analyzeScriptContent(
   packageName: string,
   version: string,
@@ -75,14 +98,73 @@ function analyzeScriptContent(
     }
   }
 
-  // Layer 2: AST analysis (only if regex found something AND AST is enabled)
+  // Layer 2: Deobfuscation (if encoding patterns detected)
+  let deobfResult: ReturnType<typeof deobfuscateScript> | null = null;
+  if (findings.length > 0 && options?.deobfuscate !== false && hasEncodedContent(scriptContent, findings)) {
+    try {
+      deobfResult = deobfuscateScript(scriptContent);
+
+      if (deobfResult.success && deobfResult.iterations > 0) {
+        // Mark existing findings with deobfuscation metadata
+        for (const f of findings) {
+          f.deobfuscation = deobfResult;
+        }
+
+        // Re-analyze deobfuscated code with regex only (prevent infinite recursion)
+        try {
+          const deobfFindings = analyzeScriptContent(
+            packageName,
+            version,
+            scriptName,
+            deobfResult.deobfuscated,
+            { ast: false, deobfuscate: false },
+          );
+
+          // Add deobfuscated findings if they're new patterns
+          for (const deobfFinding of deobfFindings) {
+            const alreadyFound = findings.some(
+              (f) => f.pattern === deobfFinding.pattern || f.pattern === `${deobfFinding.pattern}-deobfuscated`
+            );
+
+            if (!alreadyFound) {
+              deobfFinding.pattern = `${deobfFinding.pattern}-deobfuscated`;
+              deobfFinding.deobfuscation = deobfResult;
+              findings.push(deobfFinding);
+            }
+          }
+        } catch {
+          // Recursive analysis failed — continue with original findings
+        }
+      }
+    } catch {
+      // Deobfuscation failed — continue with regex findings
+    }
+  }
+
+  // Layer 3: AST analysis (runs on original + deobfuscated content)
   if (findings.length > 0 && options?.ast !== false) {
     try {
+      // Analyze original content
       const astFindings = analyzeScriptAST(scriptContent);
+      const allAstFindings = [...astFindings];
 
-      if (astFindings.length > 0) {
-        // Add AST findings
-        findings.push(...astFindings.map((f) => ({
+      // Also analyze deobfuscated content if available and valid JS
+      if (deobfResult?.success && deobfResult.iterations > 0 && deobfResult.isValidJS !== false) {
+        try {
+          const deobfAstFindings = analyzeScriptAST(deobfResult.deobfuscated);
+          // Deduplicate: only add patterns not already found in original AST
+          for (const f of deobfAstFindings) {
+            if (!allAstFindings.some(existing => existing.pattern === f.pattern)) {
+              allAstFindings.push(f);
+            }
+          }
+        } catch {
+          // Deobfuscated AST analysis failed — continue with original AST findings
+        }
+      }
+
+      if (allAstFindings.length > 0) {
+        findings.push(...allAstFindings.map((f) => ({
           package: packageName,
           scriptName,
           scriptContent,
@@ -92,55 +174,12 @@ function analyzeScriptContent(
           match: f.match,
         })));
 
-        // Add AST findings metadata to first regex finding
         if (findings.length > 0) {
-          findings[0].astFindings = astFindings;
-        }
-
-        // Layer 3: Deobfuscation (only if AST found something AND deobfuscation is enabled)
-        const deobf = options?.deobfuscate === false
-          ? { deobfuscated: scriptContent, iterations: 0, techniques: [], success: false }
-          : deobfuscateScript(scriptContent);
-        if (deobf.success && deobf.iterations > 0) {
-          // Mark all findings with deobfuscation metadata
-          for (const f of findings) {
-            f.deobfuscation = deobf;
-          }
-
-          // Re-analyze deobfuscated code (recursive call with deobfuscated content)
-          // This catches patterns that were hidden by encoding
-          try {
-            const deobfFindings = analyzeScriptContent(
-              packageName,
-              version,
-              scriptName,
-              deobf.deobfuscated
-            );
-
-            // Add deobfuscated findings if they're different
-            for (const deobfFinding of deobfFindings) {
-              // Check if this pattern was already found
-              const alreadyFound = findings.some(
-                (f) => f.pattern === deobfFinding.pattern
-              );
-
-              if (!alreadyFound) {
-                // Mark as found via deobfuscation
-                deobfFinding.pattern = `${deobfFinding.pattern}-deobfuscated`;
-                findings.push(deobfFinding);
-              }
-            }
-          } catch {
-            // Recursive analysis failed — continue with original findings
-          }
+          findings[0].astFindings = allAstFindings;
         }
       }
-    } catch (error: any) {
-      // AST/deobfuscation failed — continue with regex-only
-      // Log warning but don't break the scan
-      console.warn(
-        `AST/deobfuscation analysis failed for ${packageName}:${scriptName}: ${error.message}`
-      );
+    } catch {
+      // AST analysis failed — continue with existing findings
     }
   }
 
