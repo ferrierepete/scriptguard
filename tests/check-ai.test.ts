@@ -65,7 +65,7 @@ describe('scanPackageJsonWithAI — with mocked Gemini', () => {
     // totalFindings should only count static findings
     expect(result.totalFindings).toBeGreaterThan(0);
 
-    // findingsByLevel should include AI-escalated severities
+    // findingsByLevel counts static findings (malicious.json has critical patterns)
     expect(result.findingsByLevel.critical).toBeGreaterThanOrEqual(1);
 
     // Overall should reflect the escalated severity

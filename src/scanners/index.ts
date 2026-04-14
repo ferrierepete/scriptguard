@@ -56,7 +56,9 @@ function aggregateResults(
 
 /**
  * Recompute per-package and overall risk scores/levels.
- * Factors in both static findings and AI threat insights.
+ * Per-package scores blend static findings with AI threat insights.
+ * findingsByLevel counts only static findings (consistent with totalFindings).
+ * overallRiskLevel is derived from overallRiskScore thresholds, not findingsByLevel.
  */
 function recalculateOverall(result: ScanResult): void {
   const analyses = result.analyses;
@@ -82,21 +84,15 @@ function recalculateOverall(result: ScanResult): void {
     }
   }
 
-  // Count findings by level (static findings only — AI insights live in aiAnalysis)
+  // findingsByLevel counts ONLY static findings — consistent with totalFindings
   const findingsByLevel: Record<RiskLevel, number> = { low: 0, medium: 0, high: 0, critical: 0 };
   for (const a of analyses) {
     for (const f of a.findings) {
       findingsByLevel[f.riskLevel]++;
     }
-    // Also count AI threat severities so the summary reflects AI escalation
-    if (a.aiAnalysis) {
-      for (const insight of a.aiAnalysis.insights.filter(i => i.type === 'threat')) {
-        findingsByLevel[insight.severity]++;
-      }
-    }
   }
 
-  // Recalculate overall risk score from per-package scores
+  // Recalculate overall risk score from per-package scores (which include AI blending)
   let overallRiskScore = 0;
   if (analyses.length > 0) {
     const total = analyses.reduce((sum, a) => sum + a.riskScore, 0);
@@ -105,12 +101,9 @@ function recalculateOverall(result: ScanResult): void {
     overallRiskScore = Math.min(100, Math.round(overallRiskScore * 0.3 + maxScore * 0.7));
   }
 
-  let overallRiskLevel: RiskLevel = 'low';
-  if (findingsByLevel.critical > 0) overallRiskLevel = 'critical';
-  else if (findingsByLevel.high > 0) overallRiskLevel = 'high';
-  else if (findingsByLevel.medium > 0) overallRiskLevel = 'medium';
+  // overallRiskLevel derived from score thresholds — reflects AI escalation via per-package scores
+  const overallRiskLevel = riskLevelFromScore(overallRiskScore);
 
-  // totalFindings stays as static findings only (no inflation from AI)
   result.totalFindings = analyses.reduce((sum, a) => sum + a.findings.length, 0);
   result.overallRiskScore = overallRiskScore;
   result.overallRiskLevel = overallRiskLevel;
