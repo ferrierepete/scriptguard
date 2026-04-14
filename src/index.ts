@@ -1,6 +1,6 @@
 /** ScriptGuard — Public API exports */
 
-export { scanProject, scanPackageJson, shouldFail, filterByRiskLevel } from './scanners/index.js';
+export { scanProject, scanPackageJson, scanPackageJsonWithAI, shouldFail, filterByRiskLevel } from './scanners/index.js';
 export { analyzePackage, scanInstalledPackages, scanSinglePackage } from './scanners/lifecycle.js';
 export { PATTERN_RULES } from './scanners/patterns.js';
 export type {
@@ -10,4 +10,8 @@ export type {
   ScanOptions,
   PatternRule,
   RiskLevel,
+  AIOptions,
+  AIMode,
+  AIAnalysis,
+  AIInsight,
 } from './types/index.js';

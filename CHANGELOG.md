@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-04-14
+
+### Added
+
+- `--ai` flag on `check` command — AI-powered analysis of a single package.json (false positive filtering, threat detection, insights)
+- `--explain` flag on `check` command — AI narrates each finding in plain English (auto-enables `--ai`)
+- `--ai-mode`, `--ai-mitigation`, `--ai-max-tokens`, `--ai-timeout` flags on `check` command (parity with `scan`)
+- `scanPackageJsonWithAI()` async function for programmatic use with optional AI enrichment
+- `AIMode`, `AIOptions`, `AIAnalysis`, `AIInsight` types exported from public API
+- 17 tests covering `check --ai`, `check --explain`, mocked AI enrichment, graceful degradation, and CLI integration
+
 ## [1.0.2] - 2026-04-14
 
 ### Added

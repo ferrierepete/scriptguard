@@ -94,6 +94,21 @@ export function scanPackageJson(filePath: string): ScanResult {
   return aggregateResults([analysis], startTime);
 }
 
+export async function scanPackageJsonWithAI(filePath: string, aiOptions?: AIOptions): Promise<ScanResult> {
+  let result = scanPackageJson(filePath);
+
+  if (aiOptions?.enabled) {
+    try {
+      result = await enrichWithAI(result, aiOptions);
+    } catch (error: any) {
+      console.warn(`\n  ⚠️  AI analysis failed: ${error.message}`);
+      console.warn('  Continuing with regex-based scanning only.\n');
+    }
+  }
+
+  return result;
+}
+
 export function shouldFail(result: ScanResult, failLevel?: RiskLevel): boolean {
   if (!failLevel) return false;
   const threshold = RISK_LEVEL_ORDER[failLevel];

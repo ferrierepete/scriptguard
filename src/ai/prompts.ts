@@ -123,6 +123,23 @@ For each package:
 6. **Detailed explanations**: Step-by-step breakdown of what the code does
 
 **Output**: Maximum depth - leave no stone unturned`;
+
+    case 'explain':
+      return `## Analysis Mode: Explain
+
+You are analyzing a single npm package.json for a developer who wants to understand what's risky about its lifecycle scripts.
+
+For EACH finding, provide a plain English explanation:
+1. **What the script does** — in simple, concrete terms a developer would understand
+2. **Why it's flagged** — what could go wrong if this runs during \`npm install\`
+3. **How an attacker could exploit it** — a concrete example of the attack scenario
+4. **False positive assessment** — whether this is likely benign, and why
+
+Write as if explaining to a competent developer who isn't a security expert.
+Use concrete examples (e.g., "An attacker could use this to steal your AWS credentials and spin up crypto miners in your account").
+Keep each explanation concise — 2-4 sentences per finding.
+Always include remediation advice for genuine threats.`;
+
   }
 }
 
@@ -237,11 +254,15 @@ ${mode === 'basic' ? `- Focus on obvious false positives
 - Keep descriptions brief (1-2 sentences)
 - Only report high-confidence findings (>0.7)` : mode === 'standard' ? `- Provide balanced detail
 - Include both obvious and subtle findings
-- Report moderate-confidence findings (>0.5)` : `- Be exhaustive in your analysis
+- Report moderate-confidence findings (>0.5)` : mode === 'thorough' ? `- Be exhaustive in your analysis
 - Report all findings regardless of confidence
 - Provide detailed explanations and context
 - Correlate findings across multiple scripts
-- Consider package reputation and naming patterns`}
+- Consider package reputation and naming patterns` : `- Write descriptions in plain English, 2-4 sentences each
+- Always include remediation advice for genuine threats
+- Explain what could go wrong in concrete, accessible terms
+- Assess whether each finding is likely a false positive`}
+
 
 **CRITICAL**: Respond with ONLY the JSON. No markdown formatting, no explanations outside the JSON structure.`;
 }

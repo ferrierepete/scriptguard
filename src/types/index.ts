@@ -20,7 +20,7 @@ export interface DeobfuscationResult {
 }
 
 // AI-related types
-export type AIMode = 'basic' | 'standard' | 'thorough';
+export type AIMode = 'basic' | 'standard' | 'thorough' | 'explain';
 
 export interface AIOptions {
   enabled: boolean;

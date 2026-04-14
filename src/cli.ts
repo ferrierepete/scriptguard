@@ -4,8 +4,8 @@
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ScanResult, RiskLevel, Finding, PackageAnalysis, AIOptions } from './types/index.js';
-import { scanProject, scanPackageJson, shouldFail, filterByRiskLevel } from './scanners/index.js';
+import type { ScanResult, RiskLevel, AIOptions } from './types/index.js';
+import { scanProject, scanPackageJsonWithAI, shouldFail, filterByRiskLevel } from './scanners/index.js';
 
 const RISK_ICONS: Record<RiskLevel, string> = {
   low: '⚪',
@@ -252,21 +252,53 @@ program
   .description('Check a single package.json for risky lifecycle scripts')
   .argument('<path>', 'Path to package.json')
   .option('-f, --format <format>', 'Output format (table/json/sarif)', 'table')
-  .action((filePath, opts) => {
+  .option('--ai', 'Enable AI analysis with Gemini API')
+  .option('--ai-mode <mode>', 'AI analysis depth (basic/standard/thorough)', 'standard')
+  .option('--ai-mitigation', 'Include remediation recommendations in AI output', true)
+  .option('--ai-max-tokens <number>', 'Maximum tokens per AI request', '1000')
+  .option('--ai-timeout <ms>', 'AI request timeout in milliseconds', '10000')
+  .option('--explain', 'AI explains each finding in plain English (auto-enables --ai)')
+  .action(async (filePath, opts) => {
     const resolved = path.resolve(filePath);
     if (!fs.existsSync(resolved)) {
       console.error(`\n  ❌ File not found: ${resolved}\n`);
       process.exit(2);
     }
 
-    const result = scanPackageJson(resolved);
-    const format = opts.format || 'table';
+    // --explain auto-enables --ai with explain mode
+    const aiEnabled = opts.ai || opts.explain;
+    const explainMode = !!opts.explain;
 
-    const output = format === 'json' ? formatJson(result)
-      : format === 'sarif' ? formatSarif(result)
-      : formatTable(result);
+    // Check for AI API key if AI is enabled
+    if (aiEnabled && !process.env.GOOGLE_AI_API_KEY) {
+      console.error('\n  ❌ Error: GOOGLE_AI_API_KEY environment variable not set');
+      console.error('  Get your key at: https://makersuite.google.com/app/apikey\n');
+      console.error('  Then run: export GOOGLE_AI_API_KEY=your_key_here\n');
+      process.exit(2);
+    }
 
-    console.log(output);
+    try {
+      // Build AI options if enabled
+      const aiOptions: AIOptions | undefined = aiEnabled ? {
+        enabled: true,
+        mode: explainMode ? 'explain' : (opts.aiMode || 'standard'),
+        mitigation: opts.aiMitigation !== false,
+        maxTokens: parseInt(opts.aiMaxTokens || '1000'),
+        timeout: parseInt(opts.aiTimeout || '10000'),
+      } : undefined;
+
+      const result = await scanPackageJsonWithAI(resolved, aiOptions);
+      const format = opts.format || 'table';
+
+      const output = format === 'json' ? formatJson(result)
+        : format === 'sarif' ? formatSarif(result)
+        : formatTable(result);
+
+      console.log(output);
+    } catch (err: any) {
+      console.error(`\n  ❌ Error: ${err.message}\n`);
+      process.exit(2);
+    }
   });
 
 program
