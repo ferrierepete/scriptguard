@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-14
+
+### Added
+
+- `fs-write` pattern — detects `fs.writeFile`, `fs.writeFileSync`, `fs.unlink`, and other filesystem modifications (high)
+- `network-interfaces` pattern — detects `os.networkInterfaces()` enumeration (medium)
+- `home-dir-access` pattern — detects `os.homedir()` access (high)
+- `geo-ip-lookup` pattern — detects IP geolocation API calls for location-based targeting (critical)
+- Protestware test fixture based on node-ipc incident
+
+### Fixed
+
+- AI threat insights now create synthetic findings so `findingsByLevel`, `overallRiskLevel`, and `--fail-on critical` reflect AI-escalated severity
+- Removed crude +20/-30 score heuristic in favor of proper score recalculation from findings (including AI-generated ones)
+- `recalculateOverall` now recomputes per-package `riskScore` and `riskLevel` from findings, not just top-level totals
+
 ## [1.0.5] - 2026-04-14
 
 ### Fixed

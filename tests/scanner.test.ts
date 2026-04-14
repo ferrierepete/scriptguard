@@ -144,6 +144,54 @@ describe('analyzePackage — obfuscated package', () => {
   });
 });
 
+describe('analyzePackage — protestware (node-ipc style)', () => {
+  it('detects node-eval execution', () => {
+    const pkg = loadFixture('protestware.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+    const finding = result.findings.find(f => f.pattern === 'node-eval');
+    expect(finding).toBeDefined();
+    expect(finding!.riskLevel).toBe('high');
+  });
+
+  it('detects filesystem writes', () => {
+    const pkg = loadFixture('protestware.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+    const finding = result.findings.find(f => f.pattern === 'fs-write');
+    expect(finding).toBeDefined();
+    expect(finding!.riskLevel).toBe('high');
+  });
+
+  it('detects network interface enumeration', () => {
+    const pkg = loadFixture('protestware.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+    const finding = result.findings.find(f => f.pattern === 'network-interfaces');
+    expect(finding).toBeDefined();
+  });
+
+  it('detects home directory access', () => {
+    const pkg = loadFixture('protestware.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+    const finding = result.findings.find(f => f.pattern === 'home-dir-access');
+    expect(finding).toBeDefined();
+    expect(finding!.riskLevel).toBe('high');
+  });
+
+  it('detects geolocation API lookup', () => {
+    const pkg = loadFixture('protestware.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+    const finding = result.findings.find(f => f.pattern === 'geo-ip-lookup');
+    expect(finding).toBeDefined();
+    expect(finding!.riskLevel).toBe('critical');
+  });
+
+  it('flags protestware as critical or high overall', () => {
+    const pkg = loadFixture('protestware.json');
+    const result = analyzePackage(pkg.name, pkg.version, pkg.scripts);
+    expect(result.findings.length).toBeGreaterThanOrEqual(5);
+    expect(['high', 'critical']).toContain(result.riskLevel);
+  });
+});
+
 describe('PATTERN_RULES', () => {
   it('has rules covering all categories', () => {
     const categories = new Set(PATTERN_RULES.map(r => r.category));
@@ -156,7 +204,7 @@ describe('PATTERN_RULES', () => {
   });
 
   it('has at least 20 rules', () => {
-    expect(PATTERN_RULES.length).toBeGreaterThanOrEqual(20);
+    expect(PATTERN_RULES.length).toBeGreaterThanOrEqual(25);
   });
 
   it('every rule has required fields', () => {
@@ -180,5 +228,39 @@ describe('PATTERN_RULES', () => {
     const match = PATTERN_RULES.find(r => r.name === 'crypto-miner');
     expect(match).toBeDefined();
     expect(match!.pattern.test('xmrig --url=stratum+tcp://pool.minexmr.com:443')).toBe(true);
+  });
+
+  it('detects filesystem write patterns', () => {
+    const match = PATTERN_RULES.find(r => r.name === 'fs-write');
+    expect(match).toBeDefined();
+    expect(match!.riskLevel).toBe('high');
+    expect(match!.pattern.test('fs.writeFile(path.join(os.homedir(), "READ_ME.txt"), data)')).toBe(true);
+    expect(match!.pattern.test('fs.writeFileSync("/tmp/payload.sh", code)')).toBe(true);
+    expect(match!.pattern.test('fs.unlink("/etc/passwd")')).toBe(true);
+  });
+
+  it('detects network interface enumeration', () => {
+    const match = PATTERN_RULES.find(r => r.name === 'network-interfaces');
+    expect(match).toBeDefined();
+    expect(match!.riskLevel).toBe('medium');
+    expect(match!.pattern.test('os.networkInterfaces()')).toBe(true);
+    expect(match!.pattern.test("Object.keys(require('os').networkInterfaces())")).toBe(true);
+  });
+
+  it('detects home directory access', () => {
+    const match = PATTERN_RULES.find(r => r.name === 'home-dir-access');
+    expect(match).toBeDefined();
+    expect(match!.riskLevel).toBe('high');
+    expect(match!.pattern.test("path.join(require('os').homedir(), 'READ_ME.txt')")).toBe(true);
+    expect(match!.pattern.test('os.homedir()')).toBe(true);
+  });
+
+  it('detects geolocation API lookups', () => {
+    const match = PATTERN_RULES.find(r => r.name === 'geo-ip-lookup');
+    expect(match).toBeDefined();
+    expect(match!.riskLevel).toBe('critical');
+    expect(match!.pattern.test("http.get('https://api.ipgeolocation.io/ipgeo?apiKey=abc')")).toBe(true);
+    expect(match!.pattern.test('https://ipinfo.io/json')).toBe(true);
+    expect(match!.pattern.test('https://api.ipify.org')).toBe(true);
   });
 });

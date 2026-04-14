@@ -46,6 +46,13 @@ export const PATTERN_RULES: PatternRule[] = [
     description: 'DNS lookup — can be used for DNS-based data exfiltration',
     category: 'network',
   },
+  {
+    name: 'geo-ip-lookup',
+    pattern: /(?:ipgeo|geolocation|ipify|ipinfo|ip-api|freegeoip|ipgeolocation)\.(?:io|com|net|org)|\/ipgeo\?|geoip/,
+    riskLevel: 'critical',
+    description: 'IP geolocation lookup — targeting based on location',
+    category: 'network',
+  },
 
   // === EXECUTION — arbitrary code execution ===
   {
@@ -127,6 +134,20 @@ export const PATTERN_RULES: PatternRule[] = [
     description: 'Makes a file executable',
     category: 'filesystem',
   },
+  {
+    name: 'fs-write',
+    pattern: /fs\.(writeFile|writeFileSync|appendFile|appendFileSync|unlink|unlinkSync|rename|renameSync|rmdir|rmdirSync)\s*\(/,
+    riskLevel: 'high',
+    description: 'Writes or modifies files on the filesystem',
+    category: 'filesystem',
+  },
+  {
+    name: 'home-dir-access',
+    pattern: /homedir\s*\(\)/,
+    riskLevel: 'high',
+    description: 'Accesses the user home directory path',
+    category: 'filesystem',
+  },
 
   // === EXFILTRATION — stealing data ===
   {
@@ -148,6 +169,13 @@ export const PATTERN_RULES: PatternRule[] = [
     pattern: /(?:security\s+find|keychain|osascript.*keychain)/,
     riskLevel: 'critical',
     description: 'Accesses macOS Keychain or credential store',
+    category: 'exfiltration',
+  },
+  {
+    name: 'network-interfaces',
+    pattern: /networkInterfaces\s*\(\)/,
+    riskLevel: 'medium',
+    description: 'Enumerates network interfaces — information gathering',
     category: 'exfiltration',
   },
 

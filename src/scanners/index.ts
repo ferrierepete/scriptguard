@@ -1,7 +1,7 @@
 /** ScriptGuard — Aggregate scanner */
 
 import type { ScanResult, ScanOptions, RiskLevel, PackageAnalysis, AIOptions, AIBatchRequest } from '../types/index.js';
-import { scanInstalledPackages, analyzePackage } from './lifecycle.js';
+import { scanInstalledPackages, analyzePackage, calculateRiskScore, riskLevelFromScore } from './lifecycle.js';
 import { getGeminiClient } from '../ai/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -55,10 +55,16 @@ function aggregateResults(
 }
 
 /**
- * Recompute overall risk score and level from (potentially AI-adjusted) analyses.
+ * Recompute per-package and overall risk scores/levels from (potentially AI-adjusted) findings.
  */
 function recalculateOverall(result: ScanResult): void {
   const analyses = result.analyses;
+
+  // Recalculate per-package scores from their findings (including synthetic AI findings)
+  for (const analysis of analyses) {
+    analysis.riskScore = calculateRiskScore(analysis.findings);
+    analysis.riskLevel = riskLevelFromScore(analysis.riskScore);
+  }
 
   // Recalculate findings by level
   const findingsByLevel: Record<RiskLevel, number> = { low: 0, medium: 0, high: 0, critical: 0 };
@@ -82,6 +88,7 @@ function recalculateOverall(result: ScanResult): void {
   else if (findingsByLevel.high > 0) overallRiskLevel = 'high';
   else if (findingsByLevel.medium > 0) overallRiskLevel = 'medium';
 
+  result.totalFindings = analyses.reduce((sum, a) => sum + a.findings.length, 0);
   result.overallRiskScore = overallRiskScore;
   result.overallRiskLevel = overallRiskLevel;
   result.findingsByLevel = findingsByLevel;
@@ -209,26 +216,23 @@ async function enrichWithAI(result: ScanResult, aiOptions: AIOptions): Promise<S
       totalFalsePositivesFiltered += aiAnalysis.falsePositivesFiltered;
       totalNewThreatsDetected += aiAnalysis.newThreatsDetected;
 
-      // Update risk score based on AI insights
-      if (aiAnalysis.insights.length > 0) {
-        const maxInsightSeverity = aiAnalysis.insights.reduce((max, insight) => {
-          const severityOrder = { low: 0, medium: 1, high: 2, critical: 3 };
-          return Math.max(max, severityOrder[insight.severity]);
-        }, 0);
-
-        // Adjust risk score based on AI confidence
-        if (maxInsightSeverity >= 3 && aiAnalysis.confidence > 0.7) {
-          analysis.riskScore = Math.min(100, analysis.riskScore + 20);
-        } else if (maxInsightSeverity === 0 && aiAnalysis.falsePositivesFiltered > 0) {
-          // Lower risk if AI identified false positives
-          analysis.riskScore = Math.max(0, analysis.riskScore - 30);
+      // Create synthetic findings from AI threat insights so that
+      // findingsByLevel, overallRiskLevel, and shouldFail reflect AI-detected threats
+      const threatInsights = aiAnalysis.insights.filter(i => i.type === 'threat');
+      if (threatInsights.length > 0) {
+        const bestScript = Object.keys(analysis.scripts)[0] || 'unknown';
+        const scriptContent = analysis.scripts[bestScript] || '';
+        for (const insight of threatInsights) {
+          analysis.findings.push({
+            package: analysis.name,
+            scriptName: bestScript,
+            scriptContent,
+            pattern: 'ai-threat',
+            description: insight.description,
+            riskLevel: insight.severity,
+            match: insight.attackTechnique || insight.description.substring(0, 80),
+          });
         }
-
-        // Recalculate risk level
-        if (analysis.riskScore >= 75) analysis.riskLevel = 'critical';
-        else if (analysis.riskScore >= 50) analysis.riskLevel = 'high';
-        else if (analysis.riskScore >= 25) analysis.riskLevel = 'medium';
-        else analysis.riskLevel = 'low';
       }
     }
   }

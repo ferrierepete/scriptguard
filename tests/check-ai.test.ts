@@ -61,9 +61,17 @@ describe('scanPackageJsonWithAI — with mocked Gemini', () => {
       expect(finding.aiAnalysis).toBeUndefined();
     }
 
-    // Overall score should reflect the AI-adjusted per-package score
-    expect(result.overallRiskScore).toBe(result.analyses[0].riskScore);
-    expect(result.overallRiskLevel).toBe(result.analyses[0].riskLevel);
+    // AI threat insights should produce synthetic findings
+    const syntheticFindings = result.analyses[0].findings.filter(f => f.pattern === 'ai-threat');
+    expect(syntheticFindings.length).toBe(1);
+    expect(syntheticFindings[0].riskLevel).toBe('critical');
+
+    // findingsByLevel should include the AI-escalated critical finding
+    expect(result.findingsByLevel.critical).toBeGreaterThanOrEqual(1);
+
+    // Overall should reflect the escalated severity
+    expect(result.overallRiskLevel).toBe('critical');
+    expect(result.overallRiskScore).toBeGreaterThanOrEqual(75);
 
     vi.doUnmock('../src/ai/index.js');
   });
