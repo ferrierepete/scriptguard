@@ -234,11 +234,14 @@ console.log(analysis.riskLevel); // 'critical'
 
 ## Why This Exists
 
-- **824+ malicious OpenClaw skills** were found on ClawHub (20% contamination rate)
-- **pino-SDK-v2** exfiltrated `.env` secrets to Discord via postinstall
-- **Shai-Hulud** supply chain attack compromised hundreds of npm packages
-- `npm audit` only checks for known CVEs — not malicious behavior patterns
-- No dedicated tool existed for scanning lifecycle scripts
+npm supply chain attacks are a real and ongoing threat. These incidents made headlines:
+
+- **flatmap-stream (2018)** — injected into `event-stream` (2M weekly downloads). Used the parent package's description as a decryption key to execute a hidden payload targeting BitPay's Copay Bitcoin wallet.
+- **ua-parser-js (2021)** — compromised npm account, published a version that downloaded and executed platform-specific malware (credential stealer + crypto miner). Created Windows persistence via `schtasks /create /tn DiscordUpdate`.
+- **node-ipc (2022)** — maintainer deliberately introduced protestware that geolocated users via IP and wrote files to their home directory if they were in Russia or Belarus. ~1M weekly downloads.
+- **pino-SDK-v2** — exfiltrated `.env` secrets to Discord via postinstall
+- `npm audit` only checks for known CVEs — not malicious behavior patterns in lifecycle scripts
+- No dedicated tool existed for scanning lifecycle scripts before they run
 
 ## Tech Stack
 

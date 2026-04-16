@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-04-16
+
+### Fixed
+
+- CLI and SARIF version now read from `package.json` at runtime instead of being hardcoded — no more stale version on `--version` or in SARIF output
+
+### Changed
+
+- "Why This Exists" section in README now leads with three real-world npm supply chain attacks (flatmap-stream, ua-parser-js, node-ipc)
+
 ## [1.2.0] - 2026-04-14
 
 ### Changed

@@ -7,6 +7,11 @@ import * as path from 'node:path';
 import type { ScanResult, RiskLevel, AIOptions } from './types/index.js';
 import { scanProject, scanPackageJsonWithAI, shouldFail, filterByRiskLevel } from './scanners/index.js';
 
+// Read version from package.json at runtime so it stays in sync
+const pkgVersion: string = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8')
+).version;
+
 const RISK_ICONS: Record<RiskLevel, string> = {
   low: '⚪',
   medium: '🟡',
@@ -149,7 +154,7 @@ function formatSarif(result: ScanResult): string {
       tool: {
         driver: {
           name: 'ScriptGuard',
-          version: '1.0.0',
+          version: pkgVersion,
           informationUri: 'https://github.com/ferrierepete/scriptguard',
           rules: result.analyses.flatMap((a) =>
             a.findings.map((f) => ({
@@ -191,7 +196,7 @@ const program = new Command();
 program
   .name('scriptguard')
   .description('Security scanner for npm package lifecycle scripts')
-  .version('1.0.0');
+  .version(pkgVersion);
 
 program
   .command('scan')
