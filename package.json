@@ -1,7 +1,7 @@
 {
   "name": "scriptguard",
   "version": "1.2.1",
-  "description": "Security scanner for npm package lifecycle scripts — detect malicious postinstall, preinstall, and prepare scripts before they run",
+  "description": "Security scanner for npm package lifecycle scripts \u2014 detect malicious postinstall, preinstall, and prepare scripts before they run",
   "main": "dist/index.js",
   "bin": {
     "scriptguard": "dist/cli.js"
@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "npm",
@@ -44,5 +45,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "files": [
+    "dist/"
+  ]
 }
