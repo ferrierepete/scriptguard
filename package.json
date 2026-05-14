@@ -48,5 +48,9 @@
   },
   "files": [
     "dist/"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ferrierepete/scriptguard.git"
+  }
 }
